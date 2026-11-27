@@ -677,7 +677,7 @@ class _ListNoteShellState extends State<ListNoteShell> {
         sectionHeading('Your next small step', 'Tasks', () => showTab(2)),
         const SizedBox(height: 12),
         if (todos.any((t) => t.status == 'pending')) taskCard(todos.firstWhere((t) => t.status == 'pending'))
-        else const EmptyCard(message: 'All tasks completed. Nice work!'),
+        else EmptyCard(message: todos.isEmpty ? 'Start with a small task today.' : todos.any((t) => t.status == 'done') ? 'No pending tasks. Nice progress!' : 'No pending tasks right now.'),
       ],
     );
   }
