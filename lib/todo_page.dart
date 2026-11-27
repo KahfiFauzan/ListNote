@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'task_detail_page.dart';
 
 /// A standalone, realtime To-Do page for a signed-in ListNote user.
 /// Firestore paths: users/{uid}/tasks/{taskId}, users/{uid}/categories/{categoryId}.
@@ -352,7 +353,7 @@ class _TodoPageState extends State<TodoPage> {
       backgroundColor: const Color(0xFFF5F8FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF5F8FF),
-        title: const Text('To-Do List', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             tooltip: 'Kelola kategori',
@@ -435,6 +436,9 @@ class _TodoPageState extends State<TodoPage> {
                           (_selectedCategoryId == null || data['categoryId'] == _selectedCategoryId);
                     }).toList();
                     final completedCount = all.where((e) => _taskStatus(e.data()) == 'done').length;
+                    final activeCount = all.where((e) => _taskStatus(e.data()) != 'cancelled').length;
+                    final pendingCount = all.where((e) => _taskStatus(e.data()) == 'pending').length;
+                    final cancelledCount = all.where((e) => _taskStatus(e.data()) == 'cancelled').length;
                     if (visible.isEmpty) {
                       return Center(child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -443,7 +447,7 @@ class _TodoPageState extends State<TodoPage> {
                           const SizedBox(height: 12),
                           const Text('Belum ada tugas di sini', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 6),
-                          Text('Total selesai: $completedCount dari ${all.length} tugas'),
+                          Text('$completedCount selesai · $pendingCount tertunda · $cancelledCount dibatalkan'),
                         ]),
                       ));
                     }
@@ -453,9 +457,53 @@ class _TodoPageState extends State<TodoPage> {
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text('$completedCount dari ${all.length} tugas selesai',
-                                style: const TextStyle(color: Color(0xFF64748B))),
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const Text('ONE SMALL STEP AT A TIME', style: TextStyle(
+                                  fontSize: 10, letterSpacing: 1.2, color: Color(0xFF64748B))),
+                              const SizedBox(height: 8),
+                              const Text('A little progress.', style: TextStyle(
+                                  fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF142544))),
+                              const SizedBox(height: 5),
+                              const Text('One small step is still a step.', style: TextStyle(
+                                  color: Color(0xFF64748B), fontSize: 12)),
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF142544),
+                                  borderRadius: BorderRadius.circular(22)),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  const Text('TODAY\'S MOMENTUM', style: TextStyle(
+                                      color: Colors.white70, fontSize: 10, letterSpacing: 1.2)),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(child: Text(activeCount == 0 ? 'No active tasks' : '$completedCount of $activeCount complete',
+                                      style: const TextStyle(color: Colors.white,
+                                        fontSize: 16, fontWeight: FontWeight.bold))),
+                                    const CircleAvatar(
+                                      backgroundColor: Color(0xFF2563EB),
+                                      child: Icon(Icons.check, color: Colors.white)),
+                                  ]),
+                                  const SizedBox(height: 13),
+                                  LinearProgressIndicator(
+                                    value: activeCount == 0 ? 0 : completedCount / activeCount,
+                                    minHeight: 5,
+                                    color: const Color(0xFF80ADFF),
+                                    backgroundColor: Colors.white24,
+                                    borderRadius: BorderRadius.circular(12)),
+                                  const SizedBox(height: 14),
+                                  Wrap(spacing: 8, runSpacing: 7, children: [
+                                    _momentumLabel(Icons.check_circle_outline, '$completedCount selesai', const Color(0xFF86EFAC)),
+                                    _momentumLabel(Icons.schedule, '$pendingCount pending', const Color(0xFFBFDBFE)),
+                                    _momentumLabel(Icons.close_rounded, '$cancelledCount batal', const Color(0xFFFCA5A5)),
+                                  ]),
+                                ]),
+                              ),
+                              const SizedBox(height: 18),
+                              Text('Your tasks  ·  ${visible.length} shown', style: const TextStyle(
+                                  color: Color(0xFF142544), fontWeight: FontWeight.bold)),
+                            ]),
                           );
                         }
                         final doc = visible[index - 1];
@@ -471,17 +519,22 @@ class _TodoPageState extends State<TodoPage> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 5),
                             child: ListTile(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => TaskDetailPage(taskId: doc.id),
+                                ),
+                              ),
                               leading: Icon(
                                 status == 'done' ? Icons.check_circle_rounded :
-                                status == 'cancelled' ? Icons.cancel_rounded : Icons.remove_circle_outline_rounded,
+                                status == 'cancelled' ? Icons.close_rounded : Icons.radio_button_unchecked_rounded,
                                 color: status == 'done' ? const Color(0xFF059669) :
-                                  status == 'cancelled' ? const Color(0xFFDC2626) : const Color(0xFF64748B),
+                                  status == 'cancelled' ? const Color(0xFFE58B83) : const Color(0xFF94A3B8),
                               ),
                               title: Text(data['title'] as String? ?? 'Tugas',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    decoration: status == 'done' || status == 'cancelled' ? TextDecoration.lineThrough : null,
-                                    color: completed ? Colors.grey : const Color(0xFF142544),
+                                    decoration: status == 'done' ? TextDecoration.lineThrough : null,
+                                    color: completed || status == 'cancelled' ? const Color(0xFF94A3B8) : const Color(0xFF142544),
                                   )),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,13 +542,11 @@ class _TodoPageState extends State<TodoPage> {
                                   if (description.isNotEmpty) Text(description),
                                   Text(categoryName,
                                       style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB))),
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    _statusButton(doc, 'pending', Icons.remove, 'Belum selesai', const Color(0xFF64748B), status),
-                                    const SizedBox(width: 5),
+                                  const SizedBox(height: 8),
+                                  Wrap(spacing: 6, runSpacing: 6, children: [
+                                    _statusButton(doc, 'pending', Icons.remove, 'Pending', const Color(0xFF64748B), status),
                                     _statusButton(doc, 'done', Icons.check, 'Selesai', const Color(0xFF059669), status),
-                                    const SizedBox(width: 5),
-                                    _statusButton(doc, 'cancelled', Icons.close, 'Dibatalkan', const Color(0xFFDC2626), status),
+                                    _statusButton(doc, 'cancelled', Icons.close, 'Batal', const Color(0xFFD97770), status),
                                   ]),
                                 ],
                               ),
@@ -532,22 +583,43 @@ class _TodoPageState extends State<TodoPage> {
     return data['done'] == true ? 'done' : 'pending';
   }
 
+  Widget _momentumLabel(IconData icon, String title, Color color) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 4),
+      Text(title, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    ],
+  );
+
   Widget _statusButton(DocumentSnapshot<Map<String, dynamic>> task, String value,
-      IconData icon, String tooltip, Color color, String current) {
+      IconData icon, String label, Color color, String current) {
     final selected = current == value;
     return Tooltip(
-      message: tooltip,
+      message: label,
       child: InkWell(
-        onTap: () => _setTaskStatus(task, value),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: 0.14) : const Color(0xFFF1F5F9),
-            border: Border.all(color: selected ? color : const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(10),
+        onTap: selected ? null : () => _setTaskStatus(task, value),
+        borderRadius: BorderRadius.circular(12),
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: 'Status $label',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: selected ? color.withValues(alpha: 0.12) : const Color(0xFFF7F9FD),
+              border: Border.all(color: selected ? color : const Color(0xFFE7EDFA)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 15, color: selected ? color : const Color(0xFF94A3B8)),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(
+                fontSize: 11, fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? color : const Color(0xFF64748B),
+              )),
+            ]),
           ),
-          child: Icon(icon, size: 17, color: color),
         ),
       ),
     );

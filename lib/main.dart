@@ -286,6 +286,7 @@ class _ListNoteShellState extends State<ListNoteShell> {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _noteCategoriesSub;
   final noteCategoryNames = <String>['Personal', 'Work'];
   final _customNoteCategories = <String>[];
+  Timer? _greetingRefreshTimer;
   String userName = 'ListNote User';
   String? loadError;
   int tab = 0;
@@ -301,6 +302,10 @@ class _ListNoteShellState extends State<ListNoteShell> {
     userName = widget.user.displayName?.trim().isNotEmpty == true
         ? widget.user.displayName!.trim() : 'ListNote User';
     _bindCloud();
+    // Refresh greeting as local device time passes a greeting boundary.
+    _greetingRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted && tab == 0) setState(() {});
+    });
   }
 
   void _bindCloud() {
@@ -356,6 +361,7 @@ class _ListNoteShellState extends State<ListNoteShell> {
 
   @override
   void dispose() {
+    _greetingRefreshTimer?.cancel();
     _profileSub?.cancel(); _notesSub?.cancel(); _tasksSub?.cancel(); _noteCategoriesSub?.cancel();
     super.dispose();
   }
@@ -625,8 +631,9 @@ class _ListNoteShellState extends State<ListNoteShell> {
   }
 
   Widget homeContent() {
-    final done = todos.where((task) => task.done).length;
-    final total = todos.length;
+    final done = todos.where((task) => task.status == 'done').length;
+    // Cancelled tasks are not included in the completion percentage.
+    final total = todos.where((task) => task.status != 'cancelled').length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
       children: [
@@ -634,7 +641,7 @@ class _ListNoteShellState extends State<ListNoteShell> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_todayLabel(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.2, color: AppColors.muted)),
             const SizedBox(height: 6),
-            Text('Good morning, $userName', style: Theme.of(context).textTheme.headlineSmall),
+            Text('${_localGreeting(DateTime.now())}, $userName', style: Theme.of(context).textTheme.headlineSmall),
           ])),
           IconButton.filledTonal(onPressed: _openSettings, icon: const Icon(Icons.settings_outlined), style: IconButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.navy)),
         ]),
@@ -670,7 +677,7 @@ class _ListNoteShellState extends State<ListNoteShell> {
         sectionHeading('Your next small step', 'Tasks', () => showTab(2)),
         const SizedBox(height: 12),
         if (todos.any((t) => t.status == 'pending')) taskCard(todos.firstWhere((t) => t.status == 'pending'))
-        else const EmptyCard(message: 'All tasks completed. Nice work!'),
+        else EmptyCard(message: todos.isEmpty ? 'Start with a small task today.' : todos.any((t) => t.status == 'done') ? 'No pending tasks. Nice progress!' : 'No pending tasks right now.'),
       ],
     );
   }
@@ -773,6 +780,16 @@ class _ListNoteShellState extends State<ListNoteShell> {
     const SizedBox(height: 12),
     OutlinedButton.icon(onPressed: _openSettings, icon: const Icon(Icons.settings_outlined), label: const Text('Settings')),
   ]);
+}
+
+/// Uses the phone's configured local timezone, not the physical GPS location.
+/// No location permission or network request is needed.
+String _localGreeting(DateTime now) {
+  final hour = now.hour;
+  if (hour >= 5 && hour < 11) return 'Good morning';
+  if (hour >= 11 && hour < 15) return 'Good afternoon';
+  if (hour >= 15 && hour < 19) return 'Good evening';
+  return 'Good night';
 }
 
 String _todayLabel() {
