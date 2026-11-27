@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'task_detail_page.dart';
 
 /// A standalone, realtime To-Do page for a signed-in ListNote user.
 /// Firestore paths: users/{uid}/tasks/{taskId}, users/{uid}/categories/{categoryId}.
@@ -352,7 +353,7 @@ class _TodoPageState extends State<TodoPage> {
       backgroundColor: const Color(0xFFF5F8FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF5F8FF),
-        title: const Text('To-Do List', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             tooltip: 'Kelola kategori',
@@ -435,6 +436,7 @@ class _TodoPageState extends State<TodoPage> {
                           (_selectedCategoryId == null || data['categoryId'] == _selectedCategoryId);
                     }).toList();
                     final completedCount = all.where((e) => _taskStatus(e.data()) == 'done').length;
+                    final activeCount = all.where((e) => _taskStatus(e.data()) != 'cancelled').length;
                     if (visible.isEmpty) {
                       return Center(child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -453,9 +455,47 @@ class _TodoPageState extends State<TodoPage> {
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text('$completedCount dari ${all.length} tugas selesai',
-                                style: const TextStyle(color: Color(0xFF64748B))),
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const Text('ONE SMALL STEP AT A TIME', style: TextStyle(
+                                  fontSize: 10, letterSpacing: 1.2, color: Color(0xFF64748B))),
+                              const SizedBox(height: 8),
+                              const Text('A little progress.', style: TextStyle(
+                                  fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF142544))),
+                              const SizedBox(height: 5),
+                              const Text('One small step is still a step.', style: TextStyle(
+                                  color: Color(0xFF64748B), fontSize: 12)),
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF142544),
+                                  borderRadius: BorderRadius.circular(22)),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  const Text('TODAY\'S MOMENTUM', style: TextStyle(
+                                      color: Colors.white70, fontSize: 10, letterSpacing: 1.2)),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(child: Text('$completedCount of $activeCount complete',
+                                      style: const TextStyle(color: Colors.white,
+                                        fontSize: 16, fontWeight: FontWeight.bold))),
+                                    const CircleAvatar(
+                                      backgroundColor: Color(0xFF2563EB),
+                                      child: Icon(Icons.check, color: Colors.white)),
+                                  ]),
+                                  const SizedBox(height: 13),
+                                  LinearProgressIndicator(
+                                    value: activeCount == 0 ? 0 : completedCount / activeCount,
+                                    minHeight: 5,
+                                    color: const Color(0xFF80ADFF),
+                                    backgroundColor: Colors.white24,
+                                    borderRadius: BorderRadius.circular(12)),
+                                ]),
+                              ),
+                              const SizedBox(height: 18),
+                              Text('Today  ·  ${visible.length} tasks', style: const TextStyle(
+                                  color: Color(0xFF142544), fontWeight: FontWeight.bold)),
+                            ]),
                           );
                         }
                         final doc = visible[index - 1];
@@ -471,6 +511,11 @@ class _TodoPageState extends State<TodoPage> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 5),
                             child: ListTile(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => TaskDetailPage(taskId: doc.id),
+                                ),
+                              ),
                               leading: Icon(
                                 status == 'done' ? Icons.check_circle_rounded :
                                 status == 'cancelled' ? Icons.cancel_rounded : Icons.remove_circle_outline_rounded,
