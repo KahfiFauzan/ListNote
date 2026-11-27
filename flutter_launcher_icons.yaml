@@ -1,0 +1,7 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/listnote.png"
+  adaptive_icon_background: "#F5F8FF"
+  adaptive_icon_foreground: "assets/icon/listnote.png"
+  remove_alpha_ios: true
